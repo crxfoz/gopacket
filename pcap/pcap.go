@@ -135,6 +135,61 @@ func timeoutMillis(timeout time.Duration) int {
 	return int(timeout / time.Millisecond)
 }
 
+const (
+	RPCAPNoAuth    = 0
+	RPCAPAuthCreds = 1
+)
+
+type RemoteAuth struct {
+	Type     int
+	Username string
+	Password string
+}
+
+func NewRemoteNoAuth() RemoteAuth {
+	return RemoteAuth{
+		Type:     RPCAPNoAuth,
+		Username: "",
+		Password: "",
+	}
+}
+
+func NewRemoteCreds(username string, password string) RemoteAuth {
+	return RemoteAuth{
+		Type:     RPCAPAuthCreds,
+		Username: username,
+		Password: password,
+	}
+}
+
+func OpenRemote(uri string, snaplen int32, promisc bool, timeout time.Duration, auth RemoteAuth) (handler *Handle, _ error) {
+	var pro int
+	if promisc {
+		pro = 1
+	}
+
+	p, err := pcapOpenRemote(uri, int(snaplen), pro, timeoutMillis(timeout), auth)
+	if err != nil {
+		return nil, err
+	}
+	p.timeout = timeout
+	p.device = uri
+	p.deviceIndex = 0
+	p.nanoSecsFactor = 1000
+
+	// Only set the PCAP handle into non-blocking mode if we have a timeout
+	// greater than zero. If the user wants to block forever, we'll let libpcap
+	// handle that.
+	if p.timeout > 0 {
+		if err := p.setNonBlocking(); err != nil {
+			p.pcapClose()
+			return nil, err
+		}
+	}
+
+	return p, nil
+}
+
 // OpenLive opens a device and returns a *Handle.
 // It takes as arguments the name of the device ("eth0"), the maximum size to
 // read for each packet (snaplen), whether to put the interface in promiscuous

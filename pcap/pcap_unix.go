@@ -221,6 +221,38 @@ func statusError(status C.int) error {
 	return errors.New(C.GoString(C.pcap_statustostr(status)))
 }
 
+type remoteAuth struct {
+	tp       C.int
+	username *C.char
+	password *C.char
+}
+
+func pcapOpenRemote(uri string, snaplen int, pro int, timeout int, auth RemoteAuth) (*Handle, error) {
+	buf := (*C.char)(C.calloc(errorBufferSize, 1))
+	defer C.free(unsafe.Pointer(buf))
+
+	dev := C.CString(uri)
+	defer C.free(unsafe.Pointer(dev))
+
+	username := C.CString(auth.Username)
+	defer C.free(unsafe.Pointer(username))
+
+	password := C.CString(auth.Password)
+	defer C.free(unsafe.Pointer(password))
+
+	a := remoteAuth{
+		tp:       C.int(auth.Type),
+		username: username,
+		password: password,
+	}
+
+	cptr := C.pcap_open(dev, C.int(snaplen), C.int(pro), C.int(timeout), (*C.struct_pcap_rmtauth)(unsafe.Pointer(&a)), buf)
+	if cptr == nil {
+		return nil, errors.New(C.GoString(buf))
+	}
+	return &Handle{cptr: cptr}, nil
+}
+
 func pcapOpenLive(device string, snaplen int, pro int, timeout int) (*Handle, error) {
 	buf := (*C.char)(C.calloc(errorBufferSize, 1))
 	defer C.free(unsafe.Pointer(buf))
