@@ -34,6 +34,14 @@ import (
 #include <pcap.h>
 #include <stdint.h>
 #include <poll.h>
+#include <string.h>
+
+#ifndef pcap_rpcap_h
+pcap_t *pcap_open(const char *source, int snaplen, int flags, int read_timeout, struct pcap_rmtauth *auth, char *errbuf) {
+	strcpy(errbuf, "Remote isn't supported");
+	return NULL;
+}
+#endif
 
 // Some old versions of pcap don't define this constant.
 #ifndef PCAP_NETMASK_UNKNOWN
